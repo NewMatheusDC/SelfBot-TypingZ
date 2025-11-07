@@ -86,7 +86,7 @@ def start_typing(channel_id):
         response = urlopen(req)
         if response.getcode() == 204:
             channel_name = get_channel_name(channel_id)
-            print(f"Typing in #{channel_name}(ID:{channel_id})")
+            print(f"Typing in #{channel_name} (ID:{channel_id})")
             cool_down.mark_success()
             return True
     except Exception as e:
@@ -188,4 +188,5 @@ def connect_to_gateway():
 
 if __name__ == "__main__":
     print(f"Tracking {len(channel_ids)} channels")
+
     connect_to_gateway()
