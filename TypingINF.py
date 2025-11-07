@@ -1,13 +1,13 @@
 import websocket
 import json
 import time
-import threading
+import threading 
 import random
 from urllib.request import Request, urlopen
-# Your Token Here...
-token = "YOUR_TOKEN"
-user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-# Note: It can be single channel or multiple channels :D 
+# Your Token and User Agen
+token = "YOUR_TOKEN_HERE"
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0"
+# It can be single channel or multiple channels :D
 channel_ids = [
     "CHANNEL-ID",
     "CHANNEL-ID-2",
@@ -16,7 +16,7 @@ channel_ids = [
     "CHANNEL-ID-5",
     "CHANNEL-ID-6", 
 ]
-# User Agent
+# Header
 headers = {
     "Authorization": token,
     "User-Agent": user_agent,
@@ -24,14 +24,14 @@ headers = {
 }
 
 channel_names = {}
-# Cooldown configuration :P
+# Things
 class CoolDownHandler:
     def __init__(self):
         self.last_call = 0
         self.min_wait = 1
         self.max_wait = 3
         self.failed_count = 0
-        self.backoff_base = 0
+        self.backoff_base = 2
         
     def need_wait(self):
         now = time.time()
@@ -70,7 +70,8 @@ def get_channel_name(channel_id):
         name = data.get('name', 'unknown')
         channel_names[channel_id] = name
         return name
-    except:
+    except Exception as e:
+        print(f"Failed to get channel name: {e}")
         return "unknown"
 
 def start_typing(channel_id):
@@ -89,10 +90,19 @@ def start_typing(channel_id):
             print(f"Typing in #{channel_name} (ID:{channel_id})")
             cool_down.mark_success()
             return True
+        else:
+            print(f"HTTP {response.getcode()} for channel {channel_id}")
+            cool_down.mark_failure()
     except Exception as e:
-        print(f"Failed to type in channel {channel_id}: {e}")
+        if hasattr(e, 'code'):
+            if e.code == 429:
+                print("Rate limited, waiting 5 seconds")
+                time.sleep(5)
+            else:
+                print(f"HTTP {e.code} for channel {channel_id}")
+        else:
+            print(f"Failed to type in channel {channel_id}: {e}")
         cool_down.mark_failure()
-        return False
     
     return False
 
@@ -179,7 +189,7 @@ def connect_to_gateway():
                                       on_message=handle_message,
                                       on_error=handle_error,
                                       on_close=handle_close,
-                                      header={"User-Agent": user_agent})
+                                      header=["User-Agent: " + user_agent])
             ws.on_open = handle_open
             ws.run_forever()
         except Exception as e:
@@ -188,5 +198,4 @@ def connect_to_gateway():
 
 if __name__ == "__main__":
     print(f"Tracking {len(channel_ids)} channels")
-
     connect_to_gateway()
