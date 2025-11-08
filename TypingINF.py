@@ -4,19 +4,14 @@ import time
 import threading 
 import random
 from urllib.request import Request, urlopen
-# Your Token and User Agen
-token = "YOUR_TOKEN_HERE"
+# Your Token
+token = "YOUR_TOKEN"
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0"
-# It can be single channel or multiple channels :D
+# Single Channel or Multipe ^^
 channel_ids = [
-    "CHANNEL-ID",
-    "CHANNEL-ID-2",
-    "CHANNEL-ID-3",
-    "CHANNEL-ID-4",
-    "CHANNEL-ID-5",
-    "CHANNEL-ID-6", 
+    "CHANNEL-ID", 
 ]
-# Header
+
 headers = {
     "Authorization": token,
     "User-Agent": user_agent,
@@ -24,35 +19,20 @@ headers = {
 }
 
 channel_names = {}
-# Things
+
 class CoolDownHandler:
     def __init__(self):
         self.last_call = 0
-        self.min_wait = 1
-        self.max_wait = 3
-        self.failed_count = 0
-        self.backoff_base = 2
+        self.min_wait = 0.7
+        self.max_wait = 1
         
     def need_wait(self):
         now = time.time()
         since_last = now - self.last_call
-        
-        base_wait = random.uniform(self.min_wait, self.max_wait)
-        
-        if self.failed_count > 0:
-            backoff_wait = base_wait * (self.backoff_base ** self.failed_count)
-            final_wait = min(backoff_wait, 60)
-        else:
-            final_wait = base_wait
-            
+        final_wait = random.uniform(self.min_wait, self.max_wait)
         return since_last < final_wait, final_wait - since_last
         
     def mark_success(self):
-        self.failed_count = max(0, self.failed_count - 1)
-        self.last_call = time.time()
-        
-    def mark_failure(self):
-        self.failed_count += 1
         self.last_call = time.time()
 
 cool_down = CoolDownHandler()
@@ -71,7 +51,6 @@ def get_channel_name(channel_id):
         channel_names[channel_id] = name
         return name
     except Exception as e:
-        print(f"Failed to get channel name: {e}")
         return "unknown"
 
 def start_typing(channel_id):
@@ -92,17 +71,14 @@ def start_typing(channel_id):
             return True
         else:
             print(f"HTTP {response.getcode()} for channel {channel_id}")
-            cool_down.mark_failure()
     except Exception as e:
         if hasattr(e, 'code'):
             if e.code == 429:
-                print("Rate limited, waiting 5 seconds")
-                time.sleep(5)
+                time.sleep(2)
             else:
                 print(f"HTTP {e.code} for channel {channel_id}")
         else:
             print(f"Failed to type in channel {channel_id}: {e}")
-        cool_down.mark_failure()
     
     return False
 
@@ -145,40 +121,18 @@ def handle_error(ws, error):
     print(f"Connection issue: {error}")
 
 def handle_close(ws, close_status_code, close_msg):
-    print("Connection closed, reconnecting in 5 seconds...")
-    time.sleep(5)
+    print("Connection closed, reconnecting in 3 seconds...")
+    time.sleep(3)
     connect_to_gateway()
 
 def handle_open(ws):
     print("Connected and running")
 
 def continuous_typing():
-    failed_in_row = 0
-    max_failed = 3
-    
     while True:
-        successful = 0
-        
         for channel_id in channel_ids:
-            if start_typing(channel_id):
-                successful += 1
-                failed_in_row = 0
-            else:
-                failed_in_row += 1
-                
-            if failed_in_row >= max_failed:
-                print("Multiple failures detected, waiting 30 seconds...")
-                time.sleep(30)
-                failed_in_row = 0
-                
-            time.sleep(random.uniform(1, 3))
-        
-        if successful == 0 and len(channel_ids) > 0:
-            print("All attempts failed, extended pause activated")
-            time.sleep(60)
-        elif successful > 0:
-            next_wait = random.uniform(20, 40)
-            time.sleep(next_wait)
+            start_typing(channel_id)
+            time.sleep(0.5)
 
 def connect_to_gateway():
     while True:
@@ -193,8 +147,8 @@ def connect_to_gateway():
             ws.on_open = handle_open
             ws.run_forever()
         except Exception as e:
-            print(f"Connection error: {e}. Retrying in 10 seconds...")
-            time.sleep(10)
+            print(f"Connection error: {e}. Retrying in 5 seconds...")
+            time.sleep(5)
 
 if __name__ == "__main__":
     print(f"Tracking {len(channel_ids)} channels")
